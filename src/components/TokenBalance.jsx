@@ -8,6 +8,9 @@ import {
   CardBody,
   Input,
   Spinner,
+  useToast,
+  Fade,
+  Skeleton,
 } from "@chakra-ui/react";
 import Web3 from "web3";
 import ERC20Contract from "erc20-contract-js";
@@ -20,11 +23,28 @@ const TokenBalance = () => {
   const tokenAddress = "0x07865c6E87B9F70255377e024ace6630C1Eaa37F";
 
   const [walletAddress, setWalletAddress] = useState("");
-  const [tokenAmount, setTokenAmount] = useState(0);
+  const [tokenAmount, setTokenAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [show, setShow] = useState(false);
+  const [showBalance, setShowBalance] = useState(false);
+  const toast = useToast(); // Initialize the useToast hook
 
-  async function getBalance() {
+  const isAddressValid = (address) => {
+    return web3Client.utils.isAddress(address);
+  };
+
+  const handleGetBalance = async () => {
+    if (!isAddressValid(walletAddress)) {
+      toast({
+        title: "Error",
+        description: "Invalid Ethereum address format.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const erc20Contract = new ERC20Contract(web3Client, tokenAddress);
@@ -33,20 +53,27 @@ const TokenBalance = () => {
       const decimals = BigInt(6);
       const tokenAmount = result / BigInt(10) ** decimals;
       setTokenAmount(tokenAmount.toString());
-      setLoading(false);
-      setShow(true);
+      setShowBalance(true);
     } catch (error) {
       console.error("Error fetching balance:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch token balance. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+    } finally {
       setLoading(false);
-      setShow(false);
     }
-  }
+  };
 
   return (
-    <Box className="flex flex-col justify-center items-center mt-10 ">
+    <Box className="flex flex-col justify-center items-center mt-10">
       <Heading size="lg" mb={4} className="flex items-center justify-center">
         <img
-          src="https://etherscan.io/token/images/weth_28.png"
+          src="https://etherscan.io/token/images/centre-usdc_28.png"
           className="mr-4"
           alt="Token Logo"
         />
@@ -56,13 +83,14 @@ const TokenBalance = () => {
       <Card align="center" mb={8}>
         <CardBody className="bg-[#F4F6F8] min-w-[600px]">
           <Heading size="md" mb={4}>
-            Enter your wallet Address
+            Enter your Ethereum Address
           </Heading>
           <Input
             placeholder="Enter Ethereum Address"
             bg={"white"}
             value={walletAddress}
             onChange={(e) => setWalletAddress(e.target.value)}
+            isInvalid={!isAddressValid(walletAddress)}
           />
           <Button
             bg="btnColor"
@@ -73,21 +101,23 @@ const TokenBalance = () => {
             mt={4}
             px={6}
             py={2}
-            onClick={getBalance}
-            disabled={loading}
+            onClick={handleGetBalance}
+            disabled={loading || !isAddressValid(walletAddress)}
           >
             {loading ? <Spinner size="sm" color="white" /> : "Submit"}
           </Button>
         </CardBody>
       </Card>
-      {show && (
-        <Card align="center">
-          <CardBody className="bg-white min-w-[600px] flex justify-between">
-            <Text>Token Balance</Text>
-            <Text fontWeight="bold">{tokenAmount}</Text>
-          </CardBody>
-        </Card>
-      )}
+      <Fade in={showBalance}>
+        <Skeleton isLoaded={!loading} width="100%" height="50px">
+          <Card align="center" mt={8}>
+            <CardBody className="bg-white min-w-[600px] flex justify-between">
+              <Text fontWeight="bold">Token Balance:</Text>
+              <Text>{tokenAmount}</Text>
+            </CardBody>
+          </Card>
+        </Skeleton>
+      </Fade>
     </Box>
   );
 };

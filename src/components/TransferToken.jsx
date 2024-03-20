@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Box, Button, Heading, Card, CardBody, Input } from "@chakra-ui/react";
+import { Box, Button, Heading, Card, CardBody, Input,useToast, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from "@chakra-ui/react";
 import Web3 from "web3";
 
 const TransferToken = () => {
+  const toast = useToast();
   const [receiverAddress, setReceiverAddress] = useState("");
+  const [loading, setLoading] = useState(false); 
   const [transferAmount, setTransferAmount] = useState("");
 
   const tokenAddress = "0x07865c6E87B9F70255377e024ace6630C1Eaa37F";
@@ -13,9 +15,53 @@ const TransferToken = () => {
 
   const web3 = new Web3(window.ethereum);
 
-  async function transfer() {
+  const isAddressValid = (address) => {
+    return web3.utils.isAddress(address);
+  };
+
+  const isTokenValid = (amount) => {
+    return amount > 0;
+  };
+
+  const handleTransfer = async () => {
+    if (!receiverAddress || !transferAmount) {
+      toast({
+        title: "Error",
+        description: "Recipient address and token amount are required.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
+
+    if (!isAddressValid(receiverAddress)) {
+      toast({
+        title: "Error",
+        description: "Invalid recipient address.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
+
+    if (!isTokenValid(transferAmount)) {
+      toast({
+        title: "Error",
+        description: "Token amount must be greater than 0.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
     try {
-      // Request user's permission to connect to MetaMask
+      setLoading(true);
+
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
       // Get the selected account from MetaMask
@@ -23,7 +69,7 @@ const TransferToken = () => {
       const senderAddress = accounts[0];
       const usdcContract = new web3.eth.Contract(abi, tokenAddress, {
         from: senderAddress,
-        gasLimit: 100000, //changed after EIP-1559 upgrade
+        gasLimit: 300000,
       });
       // Convert transfer amount to Wei (USDC has 6 decimal places)
       const transferAmountWei = web3.utils.toWei(
@@ -35,52 +81,39 @@ const TransferToken = () => {
       console.log("Receiver Address:", receiverAddress);
       console.log("Transfer Amount (Wei):", transferAmountWei);
 
-      // Call the transfer function of the USDC contract
       const tx = await usdcContract.methods
         .transfer(receiverAddress, transferAmountWei)
         .send();
 
       console.log("Transaction hash:", tx.transactionHash);
       console.log("Tokens transferred successfully!");
+
+      toast({
+        title: "Success",
+        description: "Tokens transferred successfully!",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+
     } catch (error) {
       console.error("Error transferring tokens:", error);
+
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while transferring tokens.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+
+    } finally {
+      setLoading(false); 
     }
-  }
 
-  // async function transfer() {
-  //   try {
-  //     if (window.ethereum) {
-  //       await window.ethereum.enable();
-  //       const web3 = new Web3(window.ethereum);
-  //       const tokenContract = new web3.eth.Contract(abi, tokenAddress);
-
-  //       if (!web3.utils.isAddress(receiverAddress)) {
-  //         throw new Error('Invalid recipient address');
-  //       }
-  //       const valueInWei = web3.utils.toWei((transferAmount * 1e6).toString(), "wei");
-  //       const value = web3.utils.fromWei(valueInWei, "wei");
-
-  //       if (Number(value) <= 0) {
-  //         throw new Error('Amount must be greater than 0');
-  //       }
-  //       const gasPrice = await web3.eth.getGasPrice();
-  //       console.log("🚀🦋💯 ~ transfer ~ gasPrice:", gasPrice)
-
-  //       const gasPriceWei = web3.utils.toWei((Number(gasPrice) * 1200).toString(), 'wei');
-  //       console.log("🚀🦋💯 ~ transfer ~ gasPriceWei:", gasPriceWei)
-
-  //       const transaction = await tokenContract.methods.transfer(receiverAddress, value).send({ from: walletAddress, gasPrice: gasPriceWei})
-  //       console.log("🚀🦋💯 ~ transfer ~ transaction:", transaction)
-
-  //       alert('Tokens transferred successfully');
-  //     } else {
-  //       console.error('MetaMask not detected. Please install MetaMask extension.');
-  //     }
-  //   } catch (error) {
-  //     console.error("Transaction failed:", error.message);
-  //     window.alert("Transaction failed. Please try again.");
-  //   }
-  // }
+  };
 
   return (
     <Box className="flex flex-col justify-center items-center mt-10">
@@ -100,7 +133,7 @@ const TransferToken = () => {
             onChange={(e) => setReceiverAddress(e.target.value)}
           />
           <Heading size="md" mb={4}>
-            Token Amount
+            USDC Token Amount
           </Heading>
           <Input
             placeholder="Enter token amount"
@@ -117,14 +150,26 @@ const TransferToken = () => {
             mt={4}
             px={6}
             py={2}
-            onClick={transfer}
+            onClick={handleTransfer}
+            disabled={!receiverAddress || !transferAmount || !isAddressValid(receiverAddress) || !isTokenValid(transferAmount)}
           >
             Submit
           </Button>
         </CardBody>
       </Card>
+      <Modal isOpen={loading} onClose={() => setLoading(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Processing Transaction</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            Please wait while the transaction is being processed...
+          </ModalBody>
+          <ModalFooter>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };
-
 export default TransferToken;
