@@ -1,11 +1,8 @@
-
-
 import {
   Box,
   Flex,
   Avatar,
   HStack,
-  Text,
   IconButton,
   Button,
   Menu,
@@ -19,22 +16,23 @@ import {
 } from "@chakra-ui/react";
 // import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons";
 import Logo from "../assets/speraxLogo.svg";
+import { useAtom } from "jotai";
+import {WalletAddress} from "../global"
 const Links = ["Home", "Demeter", "Gauge", "Stake", "Buyback", "Swap", "More"];
 
 const NavLink = (props) => {
   const { children } = props;
-
   return (
     <Box
-      as="a"
-      px={2}
-      py={1}
-      rounded={"md"}
-      _hover={{
-        textDecoration: "none",
-        bg: useColorModeValue("gray.200", "gray.700"),
-      }}
-      href={"#"}
+    as="a"
+    px={2}
+    py={1}
+    rounded={"md"}
+    _hover={{
+      textDecoration: "none",
+      bg: useColorModeValue("gray.200", "gray.700"),
+    }}
+    href={"#"}
     >
       {children}
     </Box>
@@ -43,6 +41,29 @@ const NavLink = (props) => {
 
 export default function Navbar() {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [address,setAddress]= useAtom(WalletAddress)
+
+    async function connect() {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+        setAddress(accounts[0]);
+        console.log(address)
+
+        // const web3 = new Web3(window.ethereum );
+        // const balanceInWei = await web3.eth.getBalance(accounts[0]);
+        // const balanceInEther =
+        //   balanceInWei && web3.utils.fromWei(balanceInWei, "ether");
+        // setBalance(balanceInEther);
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      alert("Please install MetaMask");
+    }
+  }
 
   return (
     <>
@@ -79,13 +100,14 @@ export default function Navbar() {
                   Buy SPA & USDs
                 </Button>
                 <Button
+                  onClick={connect}
                   bg="btnColor"
                   color="white"
                   _hover={{ bg: "btnColor" }}
                   size="md"
                   borderRadius="25"
                 >
-                  Connect wallet
+                  {address? address.slice(0, 5) + "..." + address.slice(-4):"Connect wallet"}
                 </Button>
               </div>
             </HStack>
